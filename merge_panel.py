@@ -87,6 +87,34 @@ for col in panel.columns:
     if col not in skip_cols:
         panel[col] = pd.to_numeric(panel[col], errors="coerce")
 
+# ── 7b. Data cleaning: recode out-of-range values → NaN ──────────────
+# income (C5): 99 = "prefer not to answer" → missing
+n_99 = (panel["income"] == 99).sum() if "income" in panel.columns else 0
+if n_99 > 0:
+    panel.loc[panel["income"] == 99, "income"] = pd.NA
+    print(f"\n── Data Cleaning ──")
+    print(f"  income: recoded {n_99} values of 99 → missing")
+
+# Likert 1–7 items: any value > 7 is out-of-range → missing
+# EXCLUDE count/frequency variables: EXP1,2,4 (viewing counts), IPB1 (purchase count)
+count_vars = {
+    "EXP1", "EXP2", "EXP4", "IPB1",
+    "EXP1_T2", "EXP2_T2", "EXP4_T2", "IPB1_T2",
+}
+likert_prefixes = (
+    "IBT", "SC", "SE", "SII", "IPB", "MA", "TA", "MOOD", "FOMO",
+    "EXP", "PS", "PSI", "EA", "SP", "MV", "UBI", "PEER", "IMC",
+    "CONSIST", "D1", "D2", "D3", "D4", "D5", "D6",
+)
+for col in panel.columns:
+    if col in count_vars:
+        continue  # skip count variables
+    if any(col.startswith(p) for p in likert_prefixes):
+        oor = (panel[col] > 7).sum()
+        if oor > 0:
+            panel.loc[panel[col] > 7, col] = pd.NA
+            print(f"  {col}: recoded {oor} out-of-range values (>7) → missing")
+
 # ── 8. Save merged panel ─────────────────────────────────────────────
 panel.to_csv("merged_panel.csv", index=False)
 print(f"\n✓ Saved: merged_panel.csv")
@@ -134,6 +162,15 @@ t1_att.drop(columns=["_merge_key"], inplace=True, errors="ignore")
 for col in t1_att.columns:
     if col not in skip_cols:
         t1_att[col] = pd.to_numeric(t1_att[col], errors="coerce")
+
+# Same data cleaning as panel
+if "income" in t1_att.columns:
+    t1_att.loc[t1_att["income"] == 99, "income"] = pd.NA
+for col in t1_att.columns:
+    if col in count_vars:
+        continue
+    if any(col.startswith(p) for p in likert_prefixes):
+        t1_att.loc[t1_att[col] > 7, col] = pd.NA
 
 # Stats
 n_completed = t1_att["completed_t2"].sum()
