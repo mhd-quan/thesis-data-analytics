@@ -1,11 +1,9 @@
 /*==============================================================================
   PIPELINE TEST: Live-Streaming Commerce & Impulse Purchase Behavior
   ==============================================================================
-  Purpose: Test full Stata 19 analytical pipeline with synthetic data.
-  Data:    simulated_panel.dta (merged T1-T2, n≈276)
-  
-  WARNING: This uses SYNTHETIC data for pipeline testing only.
-           Results have no substantive interpretation.
+  Purpose: Test full Stata 19 analytical pipeline with real panel data.
+  Data:    merged_panel.dta (merged T1-T2)
+
   ==============================================================================*/
 
 clear all
@@ -13,7 +11,7 @@ set more off
 set seed 2026
 
 * --- Load panel data ---
-use "simulated_panel.dta", clear
+use "merged_panel.dta", clear
 describe, short
 summarize
 
@@ -95,7 +93,7 @@ label var Exposure_binary "High exposure (above median)"
 ----------------------------------------------------------------------*/
 
 * 2.1 Table 1 descriptives
-dtable age i.gender i.education income ///
+dtable age i.gender i.education i.occupation income i.relationship ///
        IBT_mean SC_mean SE_mean SII_mean FOMO_mean ///
        IPB1 Exposure_T2 ///
        PS_T2 PSI_T2 EA_T2 SP_T2 IPB1_T2, ///
@@ -297,7 +295,7 @@ display _n "=== Robustness: PSM ==="
 * 7.1 Standard PSM (binary exposure)
 teffects psmatch (IPB1_T2) ///
     (Exposure_binary IBT_mean SC_mean SE_mean SII_mean ///
-     age i.gender i.education IPB1 FOMO_mean), ///
+     age i.gender i.education i.occupation income i.relationship IPB1 FOMO_mean), ///
     atet nn(1) caliper(0.2)
 
 * Balance diagnostics
@@ -335,9 +333,11 @@ display "E-value (CI lower bound): " %6.3f `E_ci'
 
 display _n "=== Attrition Analysis ==="
 
-* Load T1 data to compare completers vs. dropouts
+/* NOTE: Attrition analysis requires a separate T1-only dataset with a
+   completed_t2 indicator. Uncomment and adapt once that file is prepared.
+
 preserve
-use "simulated_t1.dta", clear
+use "t1_with_attrition.dta", clear
 
 * Compare on key T1 variables
 foreach v in age IBT1 SC1 SE1 EXP5 IPB1 {
@@ -348,6 +348,8 @@ foreach v in age IBT1 SC1 SE1 EXP5 IPB1 {
 tabulate gender completed_t2, chi2
 tabulate education completed_t2, chi2
 restore
+*/
+display "Attrition analysis skipped — requires T1-only file with completed_t2 flag."
 
 /*----------------------------------------------------------------------
   SECTION 10: COMMON METHOD VARIANCE
